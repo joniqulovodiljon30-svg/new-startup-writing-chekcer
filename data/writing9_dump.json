@@ -1,0 +1,13 @@
+[
+    {
+        "id": "1",
+        "category": "General",
+        "title": "Sample Question...",
+        "questionText": "This is a sample question to verify the integration. Please run the python scraper to populate real data.",
+        "modelAnswer": "This is a sample model answer.",
+        "tips": [
+            "Run scraper.py",
+            "Install Python"
+        ]
+    }
+]
