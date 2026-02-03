@@ -4,11 +4,10 @@ import { ChevronLeft, GraduationCap, ShieldCheck, UserIcon, Key, LogOut, X, Save
 import confetti from 'https://esm.sh/canvas-confetti@1.9.2';
 import { AppState, User, UserRole, UserLog, AccessKey, Question, EssayTopic } from './types';
 import { getAllUsers, saveUser, deleteUser, testDBConnection, saveLoginLog, getLoginLogs, getAccessKeys, validateAccessKey, deleteAccessKey, claimGiftAndCreateStudent, loginStudent, rememberUser, getPersistedUser, clearPersistedUser } from './services/storageService';
-import { Dashboard, EXAM_TOPICS } from './pages/Dashboard';
+import Dashboard from './pages/Dashboard';
 import { ExamSimulator } from './pages/ExamSimulator';
-import AdminDashboard from './pages/AdminDashboard';
 import ExampleViewer from './pages/ExampleViewer';
-import { DEFAULT_EXAM_CONTENT } from './data/examQuestions';
+import { EXAM_TOPICS } from './data/examQuestions';
 
 // --- HELPERS ---
 const copyToClipboard = (text: string) => {
@@ -106,7 +105,7 @@ const GetKeyAuthScreen = ({ setAppState, handleKeyLogin }: any) => {
               type="text"
               required
               value={form.login}
-              onChange={(e) => setForm({ ...form, login: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, login: e.target.value })}
               className="w-full p-4 bg-slate-950 border border-slate-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none font-mono text-white transition-all placeholder:text-slate-600"
               placeholder="loginXX"
             />
@@ -117,7 +116,7 @@ const GetKeyAuthScreen = ({ setAppState, handleKeyLogin }: any) => {
               type="text"
               required
               value={form.pass}
-              onChange={(e) => setForm({ ...form, pass: e.target.value })}
+              onChange={(e: any) => setForm({ ...form, pass: e.target.value })}
               className="w-full p-4 bg-slate-950 border border-slate-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none font-mono text-white transition-all placeholder:text-slate-600"
               placeholder="*******"
             />
@@ -270,7 +269,7 @@ const AdminLoginScreen = ({ adminLogin, setAdminLogin, handleAdminLogin, setAppS
             name="username"
             autoComplete="username"
             value={adminLogin.login}
-            onChange={(e) => setAdminLogin({ ...adminLogin, login: e.target.value })}
+            onChange={(e: any) => setAdminLogin({ ...adminLogin, login: e.target.value })}
             className="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white transition-all"
             placeholder="Enter Admin Login"
           />
@@ -282,7 +281,7 @@ const AdminLoginScreen = ({ adminLogin, setAdminLogin, handleAdminLogin, setAppS
             name="password"
             autoComplete="current-password"
             value={adminLogin.password}
-            onChange={(e) => setAdminLogin({ ...adminLogin, password: e.target.value })}
+            onChange={(e: any) => setAdminLogin({ ...adminLogin, password: e.target.value })}
             className="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white transition-all"
             placeholder="Enter Admin Password"
           />
@@ -496,7 +495,7 @@ const AdminDashboard = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {accessKeys.map((key) => (
+                  {accessKeys.map((key: any) => (
                     <tr key={key.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono font-bold text-slate-800">{key.login}</td>
                       <td className="px-4 py-3 font-mono text-indigo-600">{key.pass}</td>
@@ -557,7 +556,7 @@ const AdminDashboard = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {logs.map((log) => (
+                  {logs.map((log: any) => (
                     <tr key={log.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
@@ -587,7 +586,7 @@ const AdminDashboard = ({
             <textarea
               className="flex-1 w-full p-4 border border-slate-200 rounded-xl font-mono text-sm resize-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 min-h-[400px]"
               value={material}
-              onChange={(e) => setMaterial(e.target.value)}
+              onChange={(e: any) => setMaterial(e.target.value)}
             />
             <div className="mt-4 flex justify-end">
               <button onClick={handleSaveMaterial} className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-2 rounded-lg font-medium">
@@ -606,7 +605,7 @@ const AdminDashboard = ({
               <textarea
                 className="flex-1 w-full p-4 border border-slate-200 rounded-xl font-mono text-sm resize-none focus:ring-2 focus:ring-indigo-500 bg-slate-900 text-green-400 min-h-[300px]"
                 value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
+                onChange={(e: any) => setAiPrompt(e.target.value)}
               />
               <div className="mt-4 flex justify-end">
                 <button onClick={handleSavePrompt} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium">
@@ -785,7 +784,7 @@ const App = () => {
   const [adminLogin, setAdminLogin] = useState({ login: '', password: '' });
   const [authMode, setAuthMode] = useState<'SIGN_IN' | 'SIGN_UP'>('SIGN_IN');
   const [studentForm, setStudentForm] = useState({ name: '', surname: '', username: '', password: '' });
-  const [material, setMaterial] = useState(DEFAULT_EXAM_CONTENT);
+  const [material, setMaterial] = useState(JSON.stringify(EXAM_TOPICS, null, 2));
   const [aiPrompt, setAiPrompt] = useState('You are an IELTS Writing examiner.');
 
   useEffect(() => {

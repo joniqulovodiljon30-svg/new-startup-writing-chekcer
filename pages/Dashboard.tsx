@@ -48,7 +48,7 @@ const getCategoryColor = (category: string): string => {
 // MAIN COMPONENT
 // ============================================
 
-const Dashboard: React.FC<DashboardProps> = ({ currentUser, onStartExam, onViewExample, onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ currentUser, onStartExam, onViewExample, onLogout }: DashboardProps) => {
     const navigate = useNavigate();
     // Filtrlash uchun state: 'all', 'task1', yoki 'task2'
     const [filterType, setFilterType] = useState<'all' | 'task1' | 'task2'>('all');
@@ -124,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onStartExam, onViewE
 
                 {/* --- SAVOLLAR RO'YXATI --- */}
                 <div className="grid md:grid-cols-2 gap-4">
-                    {filteredTopics.map((topic) => (
+                    {filteredTopics.map((topic: Question) => (
                         <div key={topic.id} className="bg-[#111827] border border-white/5 p-6 rounded-2xl hover:border-indigo-500/50 transition-colors group">
                             <div className="flex justify-between items-start mb-4">
                                 <span className={`px-3 py-1 rounded-lg text-xs font-medium ${topic.type === 'task1' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-purple-500/10 text-purple-400'}`}>
