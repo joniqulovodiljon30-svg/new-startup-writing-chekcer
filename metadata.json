@@ -1,0 +1,7 @@
+{
+  "name": "Exam Prep Teacher AI by @MR_Odilxon",
+  "description": "A strict but helpful AI teacher for English exam preparation using independent learning skills.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
