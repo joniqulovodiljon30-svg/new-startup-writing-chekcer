@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, GraduationCap, ShieldCheck, UserIcon, Key, LogOut, X, Save, BookOpen, Edit3, Globe, Settings, Database, Wifi, FileText, HardDrive, RefreshCw, Trash2, Gift, Copy, Loader2, Sparkles, CheckCircle, Zap } from 'lucide-react';
 // @ts-ignore
 import confetti from 'https://esm.sh/canvas-confetti@1.9.2';
-import { AppState, User, UserRole, UserLog, AccessKey, Question } from './types';
+import { AppState, User, UserRole, UserLog, AccessKey, Question, EssayTopic } from './types';
 import { getAllUsers, saveUser, deleteUser, testDBConnection, saveLoginLog, getLoginLogs, getAccessKeys, validateAccessKey, deleteAccessKey, claimGiftAndCreateStudent, loginStudent, rememberUser, getPersistedUser, clearPersistedUser } from './services/storageService';
 import { Dashboard, EXAM_TOPICS } from './pages/Dashboard';
 import { ExamSimulator } from './pages/ExamSimulator';
+import AdminDashboard from './pages/AdminDashboard';
+import ExampleViewer from './pages/ExampleViewer';
 import { DEFAULT_EXAM_CONTENT } from './data/examQuestions';
 
 // --- HELPERS ---
@@ -899,6 +901,14 @@ const App = () => {
     setSelectedTopic(null);
   };
 
+  const handleViewExample = (topic: EssayTopic) => {
+    setViewingExample(topic);
+  };
+
+  const handleBackFromExample = () => {
+    setViewingExample(null);
+  };
+
   return (
     <>
       {/* ROUTING */}
@@ -955,7 +965,12 @@ const App = () => {
       )}
 
       {appState === AppState.SESSION && currentUser && (
-        selectedTopic ? (
+        viewingExample ? (
+          <ExampleViewer
+            topic={viewingExample}
+            onBack={handleBackFromExample}
+          />
+        ) : selectedTopic ? (
           <ExamSimulator
             currentUser={currentUser}
             topic={selectedTopic}
@@ -966,6 +981,7 @@ const App = () => {
           <Dashboard
             currentUser={currentUser}
             onStartExam={handleStartExam}
+            onViewExample={handleViewExample}
             onLogout={handleLogout}
           />
         )

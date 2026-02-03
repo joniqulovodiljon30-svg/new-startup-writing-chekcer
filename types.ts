@@ -12,11 +12,14 @@ export interface Question {
   category: string;
   title: string;
   question: string;
-  type: 'Opinison' | 'Discussion' | 'Problem/Solution' | 'Advantages/Disadvantages';
+  type?: 'task1' | 'task2';
   difficulty: 'Easy' | 'Medium' | 'Hard';
   tips: string[];
-  modelAnswer: string;
+  band9Answer: string;
+  band7Answer: string;
 }
+
+export type EssayTopic = Question;
 
 // ============================================
 // ASSESSMENT TYPES

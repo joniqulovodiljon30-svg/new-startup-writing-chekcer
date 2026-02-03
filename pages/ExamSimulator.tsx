@@ -242,32 +242,6 @@ const ExamSimulator: React.FC<ExamSimulatorProps> = ({ currentUser, topic, onBac
                                 </div>
                             )}
                         </div>
-
-                        {/* Model Answer Accordion */}
-                        <div className="border border-white/10 rounded-xl overflow-hidden">
-                            <button
-                                onClick={() => setShowModelAnswer(!showModelAnswer)}
-                                className="w-full flex items-center justify-between p-4 bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-indigo-400" />
-                                    <span className="font-semibold text-indigo-300">Model Answer (Band 9)</span>
-                                </div>
-                                {showModelAnswer ? (
-                                    <ChevronUp className="w-5 h-5 text-indigo-400" />
-                                ) : (
-                                    <ChevronDown className="w-5 h-5 text-indigo-400" />
-                                )}
-                            </button>
-
-                            {showModelAnswer && (
-                                <div className="p-4 bg-indigo-500/5 border-t border-white/5">
-                                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
-                                        {topic.modelAnswer}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
 
