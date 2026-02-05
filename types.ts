@@ -36,13 +36,35 @@ export interface Correction {
   explanation: string;
 }
 
+// NEW: Annotation for color-coded inline feedback
+export type AnnotationType = 'spelling' | 'grammar' | 'vocabulary_upgrade' | 'style' | 'coherence';
+export type AnnotationColor = 'red' | 'yellow' | 'green' | 'blue' | 'orange';
+
+export interface Annotation {
+  original_text: string;
+  type: AnnotationType;
+  correction: string;
+  explanation: string;
+  ui_color: AnnotationColor;
+}
+
+// NEW: Word count status for penalty tracking
+export type WordCountStatus =
+  | 'Optimal'
+  | 'Too Short (Penalty Applied)'
+  | 'Too Long (Penalty Applied)'
+  | 'Severely Under Length';
+
 export interface AssessmentResult {
   overallBand: number;
+  wordCount?: number;
+  wordCountStatus?: WordCountStatus;
   taskResponse: CriterionScore;
   coherenceCohesion: CriterionScore;
   lexicalResource: CriterionScore;
   grammaticalRange: CriterionScore;
   corrections: Correction[];
+  annotations?: Annotation[];
   summary: string;
 }
 

@@ -1,44 +1,84 @@
 import { GoogleGenAI } from "@google/genai";
-import { AssessmentResult, GeminiConfig, Correction, CriterionAssessment } from "../types";
+import { AssessmentResult, Annotation, WordCountStatus } from "../types";
 
 // Re-export types for backward compatibility
-export type { AssessmentResult, GeminiConfig, Correction, CriterionAssessment };
+export type { AssessmentResult, Annotation };
+
+// --- TYPES ---
+export interface GeminiConfig {
+  apiKey: string;
+  model?: string;
+}
+
+export interface CriterionAssessment {
+  score: number;
+  feedback: string;
+}
+
+export interface Correction {
+  original_sentence: string;
+  corrected_sentence: string;
+  explanation: string;
+}
 
 // --- CONSTANTS ---
 
 const DEFAULT_MODEL = "gemini-2.0-flash";
 
-// --- HARDCODED SYSTEM PROMPT FOR JSON OUTPUT ---
+// --- STRICT IELTS EXAMINER PROMPT ---
 
-const GRADING_SYSTEM_PROMPT = `You are a strict IELTS Examiner. Your only task is to analyze essays and return structured JSON assessments.
+const GRADING_SYSTEM_PROMPT = `Role: You are a strict, senior IELTS Examiner. Your task is to grade essays (Task 1 and Task 2) with extreme precision, avoiding score inflation. You must penalize off-topic content, word count violations, and grammatical errors strictly.
 
-CRITICAL RULES:
-1. You MUST return ONLY valid JSON - no markdown, no text before or after the JSON.
-2. Do NOT wrap the JSON in code blocks or backticks.
-3. Be strict but fair in your scoring.
-4. Scores must be on the IELTS band scale (0-9, with 0.5 increments).
-5. Provide specific, actionable feedback for each criterion.
-6. Identify and correct at least 3-5 grammar/vocabulary mistakes if present.
-7. Always compare the essay to what a Band 9 response would look like.`;
+**STRICT GRADING RULES:**
+
+1.  **Relevance Check (CRITICAL):**
+    - If the essay is NOT related to the Topic, the maximum score for Task Response is 2.0.
+    - Length does NOT equal quality. A 1000-word essay that is off-topic or repetitive must receive a low score.
+
+2.  **Word Count Penalties (Apply these strictly):**
+    - **For Task 1:**
+        - Optimal Range: 150 - 200 words.
+        - If < 150 words: Deduct 0.5 - 1.0 band points.
+        - If > 250 words: Deduct 0.5 band points (Loss of conciseness).
+    - **For Task 2:**
+        - Optimal Range: 250 - 300 words.
+        - If < 250 words: Deduct 0.5 - 1.0 band points.
+        - If > 350 words: Deduct 0.5 band points (Lack of focus).
+
+3.  **Detailed Analysis Requirements:**
+    - **Grammar:** Identify every error. Provide a correction.
+    - **Vocabulary:** Identify weak/repetitive words. Suggest C1/C2 level synonyms.
+    - **Coherence:** Check if linking words are used correctly, not just frequently.
+
+4. **Feedback Quality:**
+    - Provide SPECIFIC, ACTIONABLE feedback for each criterion.
+    - Reference EXACT phrases from the essay in your feedback.
+    - Tell the student exactly what to improve with examples.
+    - Compare their writing to what a Band 9 response would include.
+
+5. **Be a strict but fair examiner. Do not inflate scores.**
+
+CRITICAL: You MUST return ONLY valid JSON - no markdown, no text before or after the JSON.`;
 
 // --- MAIN GRADING FUNCTION ---
 
 /**
- * Grades an IELTS essay using Gemini AI.
+ * Grades an IELTS essay using Gemini AI with strict scoring.
  * 
  * @param question - The IELTS writing question/prompt
  * @param userEssay - The student's essay response
- * @param config - Configuration object with API key (from Admin Panel or env)
- * @returns AssessmentResult with detailed grading
- * @throws Error if API key is invalid or missing, or if response parsing fails
+ * @param config - Configuration object with API key
+ * @param taskType - 'task1' or 'task2' for appropriate word count rules
+ * @returns AssessmentResult with detailed grading and annotations
  */
 export const gradeEssay = async (
   question: string,
   userEssay: string,
-  config: GeminiConfig
+  config: GeminiConfig,
+  taskType: 'task1' | 'task2' = 'task2'
 ): Promise<AssessmentResult> => {
 
-  // 1. Resolve API Key (Admin Panel takes priority, then env)
+  // 1. Resolve API Key
   const apiKey = config?.apiKey || (typeof process !== 'undefined' && process.env?.API_KEY) || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY);
 
   if (!apiKey) {
@@ -47,14 +87,28 @@ export const gradeEssay = async (
     );
   }
 
-  // 2. Validate API Key format (basic check)
   if (apiKey.length < 20) {
     throw new Error(
-      "❌ Invalid API Key: The provided API key appears to be invalid. Please check your Admin Panel configuration."
+      "❌ Invalid API Key: The provided API key appears to be invalid."
     );
   }
 
-  // 3. Initialize Gemini Client
+  // 2. Calculate word count
+  const wordCount = userEssay.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+  // 3. Determine word count status
+  let wordCountStatus: WordCountStatus = 'Optimal';
+  if (taskType === 'task1') {
+    if (wordCount < 100) wordCountStatus = 'Severely Under Length';
+    else if (wordCount < 150) wordCountStatus = 'Too Short (Penalty Applied)';
+    else if (wordCount > 250) wordCountStatus = 'Too Long (Penalty Applied)';
+  } else {
+    if (wordCount < 200) wordCountStatus = 'Severely Under Length';
+    else if (wordCount < 250) wordCountStatus = 'Too Short (Penalty Applied)';
+    else if (wordCount > 350) wordCountStatus = 'Too Long (Penalty Applied)';
+  }
+
+  // 4. Initialize Gemini Client
   let ai: GoogleGenAI;
   try {
     ai = new GoogleGenAI({ apiKey });
@@ -64,29 +118,63 @@ export const gradeEssay = async (
     );
   }
 
-  // 4. Build the grading prompt
-  const userPrompt = `Analyze the following essay based on the question.
+  // 5. Build the grading prompt
+  const optimalRange = taskType === 'task1' ? '150-200' : '250-300';
 
-Question: ${question}
+  const userPrompt = `Analyze the following IELTS ${taskType === 'task1' ? 'Task 1 (Report/Letter)' : 'Task 2 (Essay)'}.
 
-Essay: ${userEssay}
+**Question:** ${question}
 
-RETURN ONLY JSON (No markdown, no text before/after). Structure:
+**Student's Essay:** 
+${userEssay}
+
+**Word Count:** ${wordCount} words (Optimal range: ${optimalRange})
+**Word Count Status:** ${wordCountStatus}
+
+RETURN ONLY JSON (No markdown, no text before/after). Use this exact structure:
 {
-  "overall_band": number (e.g. 6.5),
+  "overall_band": number,
+  "word_count": ${wordCount},
+  "word_count_status": "${wordCountStatus}",
   "criteria": {
-    "task_response": { "score": number, "feedback": "string" },
-    "coherence_cohesion": { "score": number, "feedback": "string" },
-    "lexical_resource": { "score": number, "feedback": "string" },
-    "grammatical_range": { "score": number, "feedback": "string" }
+    "task_response": { 
+      "score": number, 
+      "feedback": "Detailed feedback referencing specific parts of the essay. Be strict but constructive."
+    },
+    "coherence_cohesion": { 
+      "score": number, 
+      "feedback": "Analyze paragraph structure, linking words usage, and logical flow. Reference specific examples."
+    },
+    "lexical_resource": { 
+      "score": number, 
+      "feedback": "Evaluate vocabulary range, accuracy, and appropriateness. Suggest better alternatives for weak words."
+    },
+    "grammatical_range": { 
+      "score": number, 
+      "feedback": "Identify grammar patterns, accuracy, and sentence variety. Reference specific errors."
+    }
   },
   "corrections": [
-    { "original_sentence": "string", "corrected_sentence": "string", "explanation": "string" }
+    { "original_sentence": "exact text from essay", "corrected_sentence": "improved version", "explanation": "why this is better" }
   ],
-  "model_essay_comparison": "Brief comparison with a band 9 answer"
-}`;
+  "annotations": [
+    {
+      "original_text": "exact word or phrase to highlight",
+      "type": "spelling|grammar|vocabulary_upgrade|style|coherence",
+      "correction": "suggested fix",
+      "explanation": "brief explanation",
+      "ui_color": "red for errors, yellow for vocabulary suggestions, green for style, blue for coherence, orange for spelling"
+    }
+  ],
+  "summary": "Overall assessment with specific advice for improvement. Reference the essay content."
+}
 
-  // 5. Call Gemini API
+IMPORTANT: 
+- Include 5-10 annotations for inline highlighting.
+- Be STRICT with scoring. Do not inflate.
+- Provide SPECIFIC feedback referencing actual content from the essay.`;
+
+  // 6. Call Gemini API
   const modelName = config?.model || DEFAULT_MODEL;
 
   try {
@@ -95,24 +183,19 @@ RETURN ONLY JSON (No markdown, no text before/after). Structure:
       contents: userPrompt,
       config: {
         systemInstruction: GRADING_SYSTEM_PROMPT,
-        temperature: 0.3, // Lower temperature for more consistent grading
-        responseMimeType: "application/json", // Force JSON output
+        temperature: 0.2,
+        responseMimeType: "application/json",
       }
     });
 
-    // 6. Extract and parse response
     const responseText = response.text;
 
     if (!responseText) {
-      throw new Error(
-        "❌ Empty Response: The AI returned an empty response. Please try again."
-      );
+      throw new Error("❌ Empty Response: The AI returned an empty response.");
     }
 
-    // 7. Clean the response (remove any accidental markdown formatting)
+    // 7. Clean response
     let cleanedResponse = responseText.trim();
-
-    // Remove markdown code blocks if present
     if (cleanedResponse.startsWith("```json")) {
       cleanedResponse = cleanedResponse.slice(7);
     } else if (cleanedResponse.startsWith("```")) {
@@ -124,99 +207,80 @@ RETURN ONLY JSON (No markdown, no text before/after). Structure:
     cleanedResponse = cleanedResponse.trim();
 
     // 8. Parse JSON
-    let result: AssessmentResult;
+    let rawResult: any;
     try {
-      result = JSON.parse(cleanedResponse);
+      rawResult = JSON.parse(cleanedResponse);
     } catch (parseError) {
       console.error("Failed to parse Gemini response:", cleanedResponse);
-      throw new Error(
-        "❌ Invalid Response Format: The AI response could not be parsed. Please try again."
-      );
+      throw new Error("❌ Invalid Response Format: The AI response could not be parsed.");
     }
 
-    // 9. Validate the result structure
-    if (!validateAssessmentResult(result)) {
-      console.error("Invalid assessment structure:", result);
-      throw new Error(
-        "❌ Incomplete Assessment: The AI response is missing required fields. Please try again."
-      );
-    }
+    // 9. Map to AssessmentResult format
+    const result: AssessmentResult = {
+      overallBand: rawResult.overall_band ?? 5.0,
+      wordCount: wordCount,
+      wordCountStatus: wordCountStatus,
+      taskResponse: {
+        score: rawResult.criteria?.task_response?.score ?? 5.0,
+        feedback: rawResult.criteria?.task_response?.feedback ?? "No feedback provided."
+      },
+      coherenceCohesion: {
+        score: rawResult.criteria?.coherence_cohesion?.score ?? 5.0,
+        feedback: rawResult.criteria?.coherence_cohesion?.feedback ?? "No feedback provided."
+      },
+      lexicalResource: {
+        score: rawResult.criteria?.lexical_resource?.score ?? 5.0,
+        feedback: rawResult.criteria?.lexical_resource?.feedback ?? "No feedback provided."
+      },
+      grammaticalRange: {
+        score: rawResult.criteria?.grammatical_range?.score ?? 5.0,
+        feedback: rawResult.criteria?.grammatical_range?.feedback ?? "No feedback provided."
+      },
+      corrections: (rawResult.corrections || []).map((c: any) => ({
+        original: c.original_sentence || c.original || "",
+        corrected: c.corrected_sentence || c.corrected || "",
+        explanation: c.explanation || ""
+      })),
+      annotations: (rawResult.annotations || []).map((a: any) => ({
+        original_text: a.original_text || "",
+        type: a.type || "grammar",
+        correction: a.correction || "",
+        explanation: a.explanation || "",
+        ui_color: a.ui_color || "red"
+      })),
+      summary: rawResult.summary || "Assessment completed."
+    };
 
     return result;
 
   } catch (apiError: any) {
-    // Handle specific Gemini API errors
     const errorMessage = apiError.message || "Unknown API error";
 
     if (errorMessage.includes("API_KEY_INVALID") ||
-      errorMessage.includes("invalid") && errorMessage.toLowerCase().includes("key")) {
-      throw new Error(
-        "❌ Invalid API Key: Your Gemini API key is invalid or has been revoked. Please update it in the Admin Panel."
-      );
+      (errorMessage.includes("invalid") && errorMessage.toLowerCase().includes("key"))) {
+      throw new Error("❌ Invalid API Key: Your Gemini API key is invalid.");
     }
 
     if (errorMessage.includes("QUOTA_EXCEEDED") || errorMessage.includes("quota")) {
-      throw new Error(
-        "❌ Quota Exceeded: Your API quota has been exceeded. Please check your Google Cloud billing or wait for quota reset."
-      );
+      throw new Error("❌ Quota Exceeded: Your API quota has been exceeded.");
     }
 
     if (errorMessage.includes("RATE_LIMIT") || errorMessage.includes("rate")) {
-      throw new Error(
-        "❌ Rate Limited: Too many requests. Please wait a moment and try again."
-      );
+      throw new Error("❌ Rate Limited: Too many requests. Please wait.");
     }
 
-    // Re-throw our custom errors
     if (errorMessage.startsWith("❌")) {
       throw apiError;
     }
 
-    // Generic error
-    throw new Error(
-      `❌ Grading Failed: ${errorMessage}. Please try again or contact support.`
-    );
+    throw new Error(`❌ Grading Failed: ${errorMessage}`);
   }
 };
 
-// --- VALIDATION HELPER ---
-
-function validateAssessmentResult(result: any): result is AssessmentResult {
-  if (!result || typeof result !== "object") return false;
-
-  // Check overall_band
-  if (typeof result.overall_band !== "number") return false;
-
-  // Check criteria object
-  if (!result.criteria || typeof result.criteria !== "object") return false;
-
-  const requiredCriteria = [
-    "task_response",
-    "coherence_cohesion",
-    "lexical_resource",
-    "grammatical_range"
-  ];
-
-  for (const criterion of requiredCriteria) {
-    if (!result.criteria[criterion]) return false;
-    if (typeof result.criteria[criterion].score !== "number") return false;
-    if (typeof result.criteria[criterion].feedback !== "string") return false;
-  }
-
-  // Check corrections array
-  if (!Array.isArray(result.corrections)) return false;
-
-  // Check model_essay_comparison
-  if (typeof result.model_essay_comparison !== "string") return false;
-
-  return true;
-}
-
-// --- LEGACY EXPORTS (for backward compatibility) ---
+// --- LEGACY EXPORTS ---
 
 export const DEFAULT_SYSTEM_INSTRUCTION = GRADING_SYSTEM_PROMPT;
 
 export const resetAI = () => {
-  // No-op for backward compatibility
-  console.log("resetAI called - no longer needed for gradeEssay");
+  console.log("resetAI called - no longer needed");
 };

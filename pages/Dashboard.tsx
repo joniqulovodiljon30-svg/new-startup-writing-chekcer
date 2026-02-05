@@ -10,7 +10,8 @@ import {
     GraduationCap,
     TrendingUp,
     FileText,
-    Star
+    Star,
+    Search
 } from 'lucide-react';
 import { User, Question } from '../types';
 import { EXAM_TOPICS } from '../data/examQuestions';
@@ -53,11 +54,24 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onStartExam, onViewE
     // Filtrlash uchun state: 'all', 'task1', yoki 'task2'
     const [filterType, setFilterType] = useState<'all' | 'task1' | 'task2'>('all');
     const [submissions, setSubmissions] = useState<any[]>([]);
+    // NEW: Search state
+    const [searchQuery, setSearchQuery] = useState<string>('');
 
-    // Savollarni filtrlash logikasi
+    // Savollarni filtrlash logikasi (type + search)
     const filteredTopics = EXAM_TOPICS.filter(topic => {
-        if (filterType === 'all') return true;
-        return topic.type === filterType;
+        // Filter by type
+        if (filterType !== 'all' && topic.type !== filterType) return false;
+
+        // Filter by search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            return (
+                topic.title.toLowerCase().includes(query) ||
+                topic.question.toLowerCase().includes(query) ||
+                topic.category.toLowerCase().includes(query)
+            );
+        }
+        return true;
     });
 
     // Load submissions from localStorage (Optional stats)
@@ -100,13 +114,27 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onStartExam, onViewE
             </header>
 
             <main className="max-w-6xl mx-auto">
+                {/* --- SEARCH AND FILTER --- */}
+                <div className="mb-6">
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search topics by title, question, or category..."
+                            className="w-full pl-12 pr-4 py-3 bg-[#111827] border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                        />
+                    </div>
+                </div>
+
                 {/* --- FILTR TUGMALARI --- */}
                 <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
                     <button
                         onClick={() => setFilterType('all')}
                         className={`px-6 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${filterType === 'all' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
                     >
-                        All Tasks
+                        All Tasks ({EXAM_TOPICS.length})
                     </button>
                     <button
                         onClick={() => setFilterType('task1')}
