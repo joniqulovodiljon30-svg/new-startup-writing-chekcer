@@ -780,6 +780,7 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeAccessKey, setActiveAccessKey] = useState<AccessKey | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<EssayTopic | null>(null);
+  const [viewingExample, setViewingExample] = useState<EssayTopic | null>(null);
 
   const [adminLogin, setAdminLogin] = useState({ login: '', password: '' });
   const [authMode, setAuthMode] = useState<'SIGN_IN' | 'SIGN_UP'>('SIGN_IN');
